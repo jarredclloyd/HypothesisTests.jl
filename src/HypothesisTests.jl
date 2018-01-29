@@ -180,4 +180,5 @@ include("jarque_bera.jl")
 include("durbin_watson.jl")
 include("permutation.jl")
 include("shapirowilk.jl")
+include("normordstats.jl")
 end
