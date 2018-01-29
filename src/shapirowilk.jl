@@ -134,7 +134,7 @@ end
 
 testname(::ShapiroWilkTest) = "Shapiro-Wilk normality test"
 population_param_of_interest(t::ShapiroWilkTest) =
-("Squared correlation of data and SWCoeffes (W)", 1.0, t.W)
+("Ratio of BLUE of σ and samples standard deviation", 1.0, t.W)
 
 default_tail(::ShapiroWilkTest) = :left
 
