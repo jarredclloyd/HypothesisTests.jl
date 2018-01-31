@@ -88,7 +88,7 @@ Base.getindex(OS::NormOrderStatistic{T}, i::Int) where T = OS.E[i]
 
 logI(x, i, n) = (i-1)*normlogcdf(x) + (n-i)*normlogccdf(x) + normlogpdf(x)
 
-function moment(OS::NormOrderStatistic{T}, i::Int, pow=1.0, r=12.0) where T
+function moment(OS::NormOrderStatistic{T}, i::Int, pow=1.0, r=T(R)) where T
     logC = sum(OS.logs)::T - sum(OS.logs[1:i-1]) - sum(OS.logs[1:OS.n-i])
     res = quadgk(T,
         x -> x^pow * exp(logC + logI(x, i, OS.n)),
@@ -177,6 +177,7 @@ end
 
 @memoize function ψ(i::Int, j::Int)
     j == 1 && return 1/(i+1) - α(i,1)
+    j == 1 && return DType(1)/DType(i+1) - α(i,1)
     j > i && return ψ(j, i)
     return ψ(DType, i, j)
 end
