@@ -175,23 +175,22 @@ end
     return β(DType, i, j)
 end
 
+integrand(DType, x, j, r) = integrand(x,j,r)
+
+@memoize function integrand(x, j, r::DType)
+    res = quadgk(DType,
+        y -> normcdf(y)^j,
+        -r, -x, order=gkord(j)
+        )::DType
+    return res
+end
+
 @memoize function ψ(i::Int, j::Int)
     j == 1 && return 1/(i+1) - α(i,1)
     j == 1 && return DType(1)/DType(i+1) - α(i,1)
     j > i && return ψ(j, i)
     return ψ(DType, i, j)
 end
-
-@memoize function logγ(i::Int,j::Int)
-    res = (α(i,j) + i*β(i-1,j) - ψ(i,j))/(i*j)
-    if res > 0
-        return log(res)
-    else
-        return log(eps(res))
-    end
-end
-
-logγ(::Type{DType}, i, j) = logγ(i,j)
 
 function logγ(::Type{T}, i,j) where T
     res = (α(T, i,j) + i*β(T, i-1,j) - ψ(T, i,j))/(i*j)
