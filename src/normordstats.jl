@@ -127,8 +127,9 @@ end
 ###############################################################################
 
 const R = 12.0
-# gkord(n) = 50+ceil(Int, sqrt(n))
-gkord(n) = 512
+gkord(n) = 50+ceil(Int, sqrt(n))
+const DType = BigFloat
+
 
 function α(::Type{T}, i::Int, j::Int, r=T(R)) where T
     res = quadgk(T,
@@ -162,7 +163,6 @@ function ψ(::Type{T}, i::Int, j::Int, r=T(R)) where T
     return res
 end
 
-const DType = Float64
 
 @memoize function α(i::Int, j::Int)
     i == j && return α(i+1,j) + α(i, j+1)
