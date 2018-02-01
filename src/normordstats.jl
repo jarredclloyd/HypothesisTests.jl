@@ -192,6 +192,15 @@ end
     return ψ(DType, i, j)
 end
 
+function logγ(::Type{DType}, i,j)
+    res = (α(i,j) + i*β(i-1,j) - ψ(i,j))/(i*j)
+    if res > 0
+        return log(res)
+    else
+        return log(eps(res))
+    end
+end
+
 function logγ(::Type{T}, i,j) where T
     res = (α(T, i,j) + i*β(T, i-1,j) - ψ(T, i,j))/(i*j)
     if res > 0
