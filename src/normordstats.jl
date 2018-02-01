@@ -213,7 +213,6 @@ end
 function logK(n::Int, i::Int, j::Int, logs)
     return  nalsum(logs, 1:n) -
             nalsum(logs, 1:i-1) -
-            # nalsum(logs, 1:j-i-1) -
             nalsum(logs, 1:n-j)
 end
 
@@ -237,8 +236,7 @@ function expectationproduct(OS::NormOrderStatistic{T}, i::Int, j::Int) where T
         S = zero(T)
         for r in 0:j-i-1
             for s in 0:j-i-1-r
-                logC = #nalsum(OS.logs, 1:j-i-1) -
-                        -nalsum(OS.logs, 1:r) -
+                logC = -nalsum(OS.logs, 1:r) -
                         nalsum(OS.logs, 1:s) -
                         nalsum(OS.logs, 1:j-i-1-r-s)
                 S += (-1.0)^(r+s)*exp(logC + logγ(T, i+r, OS.n-j+s+1))
