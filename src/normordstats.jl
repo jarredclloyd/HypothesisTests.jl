@@ -1,7 +1,6 @@
 module OrderStatistics
 
 using StatsFuns
-using Memoize
 
 using IntervalArithmetic.Interval
 import IntervalArithmetic.interval_from_midpoint_radius
@@ -152,7 +151,6 @@ end
 
 const R = 12.0
 gkord(n) = 50+ceil(Int, sqrt(n))
-const DType = BigFloat
 
 function α(i::Int, j::Int, r::T=R) where T
     res = quadgk(T,
@@ -184,44 +182,6 @@ function ψ(i::Int, j::Int, r::T=R) where T
         -r,  r, order=gkord(i+j)
         )::T
     return res
-end
-
-
-@memoize function α(i::Int, j::Int)
-    i == j && return α(i+1,j) + α(i, j+1)
-    j > i && return -α(j,i)
-    return α(DType, i, j)
-end
-
-@memoize function β(i::Int, j::Int)
-    j > i && return β(j, i)
-    return β(DType, i, j)
-end
-
-integrand(DType, x, j, r) = integrand(x,j,r)
-
-@memoize function integrand(x, j, r::DType)
-    res = quadgk(DType,
-        y -> normcdf(y)^j,
-        -r, -x, order=gkord(j)
-        )::DType
-    return res
-end
-
-@memoize function ψ(i::Int, j::Int)
-    j == 1 && return 1/(i+1) - α(i,1)
-    j == 1 && return DType(1)/DType(i+1) - α(i,1)
-    j > i && return ψ(j, i)
-    return ψ(DType, i, j)
-end
-
-function logγ(::Type{DType}, i,j)
-    res = (α(i,j) + i*β(i-1,j) - ψ(i,j))/(i*j)
-    if res > 0
-        return log(res)
-    else
-        return log(eps(res))
-    end
 end
 
 function logγ(i, j, r::T=R) where T
