@@ -47,15 +47,15 @@ mutable struct NormOrderStatistic{T<:Real} <: AbstractVector{T}
         # Order Statistics & Inference: Estimation Methods
         # Section 3.9
         if OS.n == 2
-            OS.E[1] = -1.0/sqrt(π)
+            OS.E[1] = -1.0/sqrt(T(π))
         elseif OS.n == 3
-            OS.E[1] = -1.5/sqrt(π)
+            OS.E[1] = -1.5/sqrt(T(π))
         elseif OS.n == 4
-            OS.E[1] = -6.0/sqrt(π) * 1/π*atan(sqrt(2))
-            OS.E[2] = -4*1.5/sqrt(π) - 3*OS.E[1] # 4*E(3|3) - 3*E(4|4)
+            OS.E[1] = -6.0/sqrt(T(π)) * 1/T(π)*atan(sqrt(T(2)))
+            OS.E[2] = -4*1.5/sqrt(T(π)) - 3*OS.E[1] # 4*E(3|3) - 3*E(4|4)
         elseif OS.n == 5
-            OS.E[1] = -10.0/sqrt(π) * ( (3/2π)*atan(sqrt(2)) - 1/4 )
-            a = -6.0/sqrt(π) * 1/π*atan(sqrt(2))
+            OS.E[1] = -10.0/sqrt(T(π)) * ( (3/(2T(π)))*atan(sqrt(T(2))) - 1/4 )
+            a = -6.0/sqrt(T(π)) * 1/T(π)*atan(sqrt(T(2)))
             OS.E[2] = 5.0*a - 4*OS.E[1] # 5*E(4|4) - 4*E(5|5)
         else
             for i in 1:div(OS.n,2)
