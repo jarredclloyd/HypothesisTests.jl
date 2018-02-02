@@ -104,6 +104,30 @@ expectation(OS::NormOrderStatistic, i::Int) = OS[i]
 
 function Base.show(io::IO, OS::NormOrderStatistic{T}) where T
     print(io, "Normal Order Statistics ($T-valued) for $(OS.n)-element samples")
+###############################################################################
+#
+#   Poor man's caching
+#
+###############################################################################
+
+const _cache = Dict{Symbol, Dict{Type, Dict}}()
+
+function getval!(f, returnT::Type, args...)
+    sf = Symbol(f)
+
+    if !(haskey(_cache, sf))
+        _cache[sf] = Dict{Type, Dict}()
+    end
+
+    if !(haskey(_cache[sf], returnT))
+        _cache[sf][returnT] = Dict{typeof(args), returnT}()
+    end
+
+    if !(haskey(_cache[sf][returnT], args))
+        _cache[sf][returnT][args] = f(args...)
+    end
+
+    return _cache[sf][returnT][args]
 end
 
 ###############################################################################
@@ -200,8 +224,12 @@ function logγ(::Type{DType}, i,j)
     end
 end
 
-function logγ(::Type{T}, i,j) where T
-    res = (α(T, i,j) + i*β(T, i-1,j) - ψ(T, i,j))/(i*j)
+function logγ(i, j, r::T=R) where T
+    res = (
+            getval!(α, T, (i,j,r)...) +
+          i*getval!(β, T, (i-1,j,r)...) -
+            getval!(ψ, T, (i,j,r)...)
+          ) / (i*j)
     if res > 0
         return log(res)
     else
