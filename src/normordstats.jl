@@ -130,8 +130,7 @@ const R = 12.0
 gkord(n) = 50+ceil(Int, sqrt(n))
 const DType = BigFloat
 
-
-function α(::Type{T}, i::Int, j::Int, r=T(R)) where T
+function α(i::Int, j::Int, r::T=R) where T
     res = quadgk(T,
         x -> sign(x)*exp(log(abs(x)) + i*normlogcdf(x) + j*normlogccdf(x)),
         -r, r, order=gkord(i+j)
@@ -139,7 +138,7 @@ function α(::Type{T}, i::Int, j::Int, r=T(R)) where T
     return res
 end
 
-function β(::Type{T}, i::Int, j::Int, r=T(R)) where T
+function β(i::Int, j::Int, r::T=R) where T
     res = quadgk(T,
         x -> exp(2log(abs(x)) + i*normlogcdf(x) + j*normlogccdf(x) + normlogpdf(x)),
         -r, r, order=gkord(i+j)
@@ -147,7 +146,7 @@ function β(::Type{T}, i::Int, j::Int, r=T(R)) where T
     return res
 end
 
-function integrand(::Type{T}, x, j, r::T) where T
+function integrand(x::T, j::Int, r::T) where T
     res =  quadgk(T,
         y -> normcdf(y)^j,
         -r, -x, order=gkord(j)
@@ -155,9 +154,9 @@ function integrand(::Type{T}, x, j, r::T) where T
     return res
 end
 
-function ψ(::Type{T}, i::Int, j::Int, r=T(R)) where T
-    res = quadgk(T,
-        x -> exp(i*normlogcdf(x) + log(integrand(T, x, j, r))),
+function ψ(i::Int, j::Int, r::T=R) where T
+    @time res = quadgk(T,
+        x -> exp(i*normlogcdf(x) + log(integrand(x, j, r))),
         -r,  r, order=gkord(i+j)
         )::T
     return res
@@ -239,7 +238,7 @@ function expectationproduct(OS::NormOrderStatistic{T}, i::Int, j::Int) where T
                 logC = -nalsum(OS.logs, 1:r) -
                         nalsum(OS.logs, 1:s) -
                         nalsum(OS.logs, 1:j-i-1-r-s)
-                S += (-1.0)^(r+s)*exp(logC + logγ(T, i+r, OS.n-j+s+1))
+                S += (-1.0)^(r+s)*exp(logC + logγ(i+r, OS.n-j+s+1, T(R)))
             end
         end
         return sign(S)*exp(logK(OS.n, i, j, OS.logs) + log(abs(S)))
