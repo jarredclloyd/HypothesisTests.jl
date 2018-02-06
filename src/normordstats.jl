@@ -102,7 +102,9 @@ expectation(OS::NormOrderStatistic{T}) where T = OS.E
 expectation(OS::NormOrderStatistic, i::Int) = OS[i]
 
 function Base.show(io::IO, OS::NormOrderStatistic{T}) where T
-    print(io, "Normal Order Statistics ($T-valued) for $(OS.n)-element samples")
+    show(io, "Normal Order Statistics ($T-valued) for $(OS.n)-element samples")
+end
+
 ###############################################################################
 #
 #   Poor man's caching
