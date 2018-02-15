@@ -87,7 +87,7 @@ Base.getindex(OS::NormOrderStatistic{T}, i::Int) where T = OS.E[i]
 
 logI(x, i, n) = (i-1)*normlogcdf(x) + (n-i)*normlogccdf(x) + normlogpdf(x)
 
-function moment(OS::NormOrderStatistic{T}, i::Int, pow=1.0, r=T(R)) where T
+function moment(OS::NormOrderStatistic{T}, i::Int, pow=1, r::T=T(R)) where T
     logC = sum(OS.logs)::T - sum(OS.logs[1:i-1]) - sum(OS.logs[1:OS.n-i])
     res = quadgk(T,
         x -> x^pow * exp(logC + logI(x, i, OS.n)),
@@ -147,14 +147,13 @@ end
 # Communications in Statistics - Simulation and Computation
 # Volume 21, 1992 - Issue 1
 # doi:10.1080/03610919208813009
-# Note: normcdf(-12.0) < 1.8e-33
 #
 ###############################################################################
 
-const R = 12.0
+const R = 12 # Note: normcdf(-12.0) < 1.8e-33
 gkord(n) = 50+ceil(Int, sqrt(n))
 
-function α(i::Int, j::Int, r::T=R) where T
+function α(i::Int, j::Int, r::T=T(R)) where T
     res = quadgk(T,
         x -> sign(x)*exp(log(abs(x)) + i*normlogcdf(x) + j*normlogccdf(x)),
         -r, r, order=gkord(i+j)
@@ -162,7 +161,7 @@ function α(i::Int, j::Int, r::T=R) where T
     return res
 end
 
-function β(i::Int, j::Int, r::T=R) where T
+function β(i::Int, j::Int, r::T=T(R)) where T
     res = quadgk(T,
         x -> exp(2log(abs(x)) + i*normlogcdf(x) + j*normlogccdf(x) + normlogpdf(x)),
         -r, r, order=gkord(i+j)
@@ -178,7 +177,7 @@ function integrand(x::T, j::Int, r::T) where T
     return res
 end
 
-function ψ(i::Int, j::Int, r::T=R) where T
+function ψ(i::Int, j::Int, r::T=T(R)) where T
     @time res = quadgk(T,
         x -> exp(i*normlogcdf(x) + log(integrand(x, j, r))),
         -r,  r, order=gkord(i+j)
@@ -186,7 +185,7 @@ function ψ(i::Int, j::Int, r::T=R) where T
     return res
 end
 
-function logγ(i, j, r::T=R) where T
+function logγ(i, j, r::T=T(R)) where T
     res = (
             getval!(α, T, (i,j,r)...) +
           i*getval!(β, T, (i-1,j,r)...) -
