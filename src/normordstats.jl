@@ -249,7 +249,7 @@ function Base.var(OS::NormOrderStatistic, i::Int)
 end
 
 function Base.cov(OS::NormOrderStatistic{T}, i::Int, j::Int) where T
-    return expectationproduct(OS, i, j) - expectation(OS,i)*expectation(OS,j)
+    return expectationproduct(OS,i,j) - expectation(OS,i)*expectation(OS,j)
 end
 
 function Base.cov(OS::NormOrderStatistic{T}) where T

@@ -127,9 +127,9 @@ function pvalue(W::T, A::SWCoeffs, N1=A.N) where T<:Real
 end
 
 struct ShapiroWilkTest <: HypothesisTest
-    SWc::SWCoeffs            # Expectation of order statistics for Shapiro-Wilk test
-    W::Float64            # test statistic
-    N1::Int               #
+    SWc::SWCoeffs # Expectation of order statistics for Shapiro-Wilk test
+    W::Float64    # test statistic
+    N1::Int       # number of un-censored samples
 end
 
 testname(::ShapiroWilkTest) = "Shapiro-Wilk normality test"
