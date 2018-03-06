@@ -31,6 +31,38 @@ end
 
 ###############################################################################
 #
+#   Poor man's caching
+#
+###############################################################################
+
+const _cache = Dict{Symbol, Dict{Type, Dict}}()
+
+function dropcache()
+    for k in keys(OrderStatistics._cache)
+        delete!(OrderStatistics._cache, k)
+    end
+end
+
+function getval!(f, returnT::Type, args...)
+    sf = Symbol(f)
+
+    if !(haskey(_cache, sf))
+        _cache[sf] = Dict{Type, Dict}()
+    end
+
+    if !(haskey(_cache[sf], returnT))
+        _cache[sf][returnT] = Dict{typeof(args), returnT}()
+    end
+
+    if !(haskey(_cache[sf][returnT], args))
+        _cache[sf][returnT][args] = f(args...)
+    end
+
+    return _cache[sf][returnT][args]
+end
+
+###############################################################################
+#
 #   NormOrderStatistic Type
 #
 ###############################################################################
@@ -118,32 +150,6 @@ expectation(OS::NormOrderStatistic, i::Int) = OS[i]
 
 function Base.show(io::IO, OS::NormOrderStatistic{T}) where T
     show(io, "Normal Order Statistics ($T-valued) for $(OS.n)-element samples")
-end
-
-###############################################################################
-#
-#   Poor man's caching
-#
-###############################################################################
-
-const _cache = Dict{Symbol, Dict{Type, Dict}}()
-
-function getval!(f, returnT::Type, args...)
-    sf = Symbol(f)
-
-    if !(haskey(_cache, sf))
-        _cache[sf] = Dict{Type, Dict}()
-    end
-
-    if !(haskey(_cache[sf], returnT))
-        _cache[sf][returnT] = Dict{typeof(args), returnT}()
-    end
-
-    if !(haskey(_cache[sf][returnT], args))
-        _cache[sf][returnT][args] = f(args...)
-    end
-
-    return _cache[sf][returnT][args]
 end
 
 ###############################################################################
