@@ -144,7 +144,7 @@ function moment(OS::NormOrderStatistic{T}, i::Int, pow=1, r::T=T(R)) where T
     return integrate(x -> x^pow * T(C) * I(x, i, OS.n), -r, r; order=gkord(OS.n))
 end
 
-expectation(OS::NormOrderStatistic{T}) where T = OS.E
+expectation(OS::NormOrderStatistic) = OS.E
 
 expectation(OS::NormOrderStatistic, i::Int) = OS[i]
 
