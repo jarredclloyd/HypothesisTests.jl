@@ -35,13 +35,23 @@ end
 #
 ###############################################################################
 
+function factorials(n)
+    facs = Array{BigInt}(n)
+    facs[1] = big(1)
+    for i in 2:n
+        facs[i] = i*facs[i-1]
+    end
+    return facs
+end
+
 mutable struct NormOrderStatistic{T<:Real} <: AbstractVector{T}
     n::Int
-    logs::Vector{T}
+    facs::Vector{BigInt}
     E::Vector{T}
 
     function NormOrderStatistic{T}(n::Int) where T
-        OS = new{T}(n, [log(T(i)) for i in 1:n])
+
+        OS = new{T}(n, factorials(n))
 
         OS.E = zeros(T, OS.n)
         # expected values of order statistics
