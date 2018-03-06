@@ -99,11 +99,16 @@ Base.getindex(OS::NormOrderStatistic{T}, i::Int) where T = OS.E[i]
 #
 ###############################################################################
 
-logI(x, i, n) = (i-1)*normlogcdf(x) + (n-i)*normlogccdf(x) + normlogpdf(x)
+I(x, i, n) = exp((i-1)*normlogcdf(x) + (n-i)*normlogccdf(x) + normlogpdf(x))
 
 function moment(OS::NormOrderStatistic{T}, i::Int, pow=1, r::T=T(R)) where T
-    logC = sum(OS.logs)::T - sum(OS.logs[1:i-1]) - sum(OS.logs[1:OS.n-i])
-
+    C = OS.facs[end]
+    if i != 1
+        C /= OS.facs[i-1]
+    end
+    if i != OS.n
+        C /= OS.facs[end-i]
+    end
     return integrate(x -> x^pow * T(C) * I(x, i, OS.n), -r, r; order=gkord(OS.n))
 end
 
@@ -184,31 +189,24 @@ function ψ(i::Int, j::Int, r::T=T(R)) where T
     return res
 end
 
-function logγ(i, j, r::T=T(R)) where T
+function γ(i, j, r::T=T(R)) where T
     res = (
             getval!(α, T, (i,j,r)...) +
           i*getval!(β, T, (i-1,j,r)...) -
             getval!(ψ, T, (i,j,r)...)
           ) / (i*j)
-    if res > 0
-        return log(res)
-    else
-        return log(eps(res))
-    end
+    return ifelse(res > zero(T), res, eps(T))
 end
 
-function logK(n::Int, i::Int, j::Int, logs)
-    return  nalsum(logs, 1:n) -
-            nalsum(logs, 1:i-1) -
-            nalsum(logs, 1:n-j)
-end
-
-function nalsum(A, idxs)
-    s = zero(eltype(A))
-    for i in idxs
-        s += A[i]
+function K(OS::NormOrderStatistic, i::T, j::T) where T<:Integer
+    C = OS.facs[end]
+    if i != 1
+        C /= OS.facs[i-1]
     end
-    return s
+    if j != OS.n
+        C /= OS.facs[end-j]
+    end
+    return C
 end
 
 function expectationproduct(OS::NormOrderStatistic{T}, i::Int, j::Int) where T
@@ -222,14 +220,15 @@ function expectationproduct(OS::NormOrderStatistic{T}, i::Int, j::Int) where T
     else
         S = zero(T)
         for r in 0:j-i-1
+            a = (r>0 ? OS.facs[r] : 1)
             for s in 0:j-i-1-r
-                logC = -nalsum(OS.logs, 1:r) -
-                        nalsum(OS.logs, 1:s) -
-                        nalsum(OS.logs, 1:j-i-1-r-s)
-                S += (-1.0)^(r+s)*exp(logC + logγ(i+r, OS.n-j+s+1, T(R)))
+                b = (s>0 ? OS.facs[s] : 1)
+                c = (j-i-1-r-s>0 ? OS.facs[j-i-1-r-s] : 1)
+                C = T(inv(a*b*c))
+                S += (-one(T))^(r+s) * C * γ(i+r, OS.n-j+s+1, T(R))
             end
         end
-        return sign(S)*exp(logK(OS.n, i, j, OS.logs) + log(abs(S)))
+        return S*T(K(OS, i, j))
     end
 end
 
