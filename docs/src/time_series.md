@@ -23,3 +23,19 @@ JarqueBeraTest
 ```@docs
 ADFTest
 ```
+
+## Clark-West test
+```@docs
+ClarkWestTest
+```
+
+## Diebold-Mariano test
+```@docs
+DieboldMarianoTest
+```
+
+## White test
+```@docs
+WhiteTest
+BreuschPaganTest
+```

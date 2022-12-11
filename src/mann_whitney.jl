@@ -62,10 +62,10 @@ function mwustats(x::AbstractVector{S}, y::AbstractVector{T}) where {S<:Real,T<:
     ny = length(y)
     if nx <= ny
         (ranks, tieadj) = tiedrank_adj([x; y])
-        U = sum(ranks[1:nx]) - nx*(nx+1)/2
+        U = sum(@view ranks[1:nx]) - nx*(nx+1)/2
     else
         (ranks, tieadj) = tiedrank_adj([y; x])
-        U = nx*ny - sum(ranks[1:ny]) + ny*(ny+1)/2
+        U = nx*ny - sum(@view ranks[1:ny]) + ny*(ny+1)/2
     end
     (U, ranks, tieadj, nx, ny, median(x)-median(y))
 end
@@ -105,9 +105,13 @@ population_param_of_interest(x::ExactMannWhitneyUTest) = ("Location parameter (p
 default_tail(test::ExactMannWhitneyUTest) = :both
 
 function show_params(io::IO, x::ExactMannWhitneyUTest, ident)
-    println(io, ident, "number of observations in each group: ", [x.nx, x.ny])
+    print(io, ident, "number of observations in each group: ")
+    show(io, [x.nx, x.ny])
+    println(io)
     println(io, ident, "Mann-Whitney-U statistic:             ", x.U)
-    println(io, ident, "rank sums:                            ", [sum(x.ranks[1:x.nx]), sum(x.ranks[x.nx+1:end])])
+    print(io, ident, "rank sums:                            ")
+    show(io, [sum(@view x.ranks[1:x.nx]), sum(@view x.ranks[x.nx+1:end])])
+    println(io)
     println(io, ident, "adjustment for ties:                  ", x.tie_adjustment)
 end
 
@@ -116,16 +120,12 @@ end
 function mwuenumerate(x::ExactMannWhitneyUTest)
     # Get the other U if inverted by mwu_stats
     n = min(x.nx, x.ny)
-    U = x.U
-    if x.ny > x.nx
-        U = x.nx*x.ny -x.U
-    end
+    U = (x.nx >= x.ny ? x.U : x.nx * x.ny - x.U) + n*(n + 1)/2
     le = 0
     gr = 0
     tot = 0
-    k = n*(n+1)/2
     for comb in combinations(x.ranks, n)
-        Up = sum(comb) - k
+        Up = sum(comb)
         tot += 1
         le += Up <= U
         gr += Up >= U
@@ -134,32 +134,31 @@ function mwuenumerate(x::ExactMannWhitneyUTest)
 end
 
 function pvalue(x::ExactMannWhitneyUTest; tail=:both)
+    check_tail(tail)
+
     if x.tie_adjustment == 0
         # Compute exact p-value using method from Rmath, which is fast but
         # cannot account for ties
         if tail == :both
             if x.U < x.nx * x.ny / 2
-                2 * pwilcox(x.U, x.nx, x.ny, true)
+                p = pwilcox(x.U, x.nx, x.ny, true)
             else
-                2 * pwilcox(x.U - 1, x.nx, x.ny, false)
+                p = pwilcox(x.U - 1, x.nx, x.ny, false)
             end
+            min(2 * p, 1.0)
         elseif tail == :left
             pwilcox(x.U, x.nx, x.ny, true)
-        elseif tail == :right
+        else # tail == :right
             pwilcox(x.U - 1, x.nx, x.ny, false)
-        else
-            throw(ArgumentError("tail=$(tail) is invalid"))
         end
     else
         # Compute exact p-value by enumerating possible ranks in the tied data
         if tail == :both
-            min(1, 2 * minimum(mwuenumerate(x)))
+            min(1.0, 2 * minimum(mwuenumerate(x)))
         elseif tail == :left
             mwuenumerate(x)[1]
-        elseif tail == :right
+        else # tail == :right
             mwuenumerate(x)[2]
-        else
-            throw(ArgumentError("tail=$(tail) is invalid"))
         end
     end
 end
@@ -223,15 +222,16 @@ function show_params(io::IO, x::ApproximateMannWhitneyUTest, ident)
 end
 
 function pvalue(x::ApproximateMannWhitneyUTest; tail=:both)
+    check_tail(tail)
+
     if x.mu == x.sigma == 0
-        1
-    else
-        if tail == :both
-            2 * ccdf(Normal(), abs(x.mu - 0.5 * sign(x.mu))/x.sigma)
-        elseif tail == :left
-            cdf(Normal(), (x.mu + 0.5)/x.sigma)
-        elseif tail == :right
-            ccdf(Normal(), (x.mu - 0.5)/x.sigma)
-        end
+        1.0
+    elseif tail == :both
+        p = 2 * ccdf(Normal(), abs(x.mu - 0.5 * sign(x.mu))/x.sigma)
+        min(p, 1.0)
+    elseif tail == :left
+        cdf(Normal(), (x.mu + 0.5)/x.sigma)
+    else # tail == :right
+        ccdf(Normal(), (x.mu - 0.5)/x.sigma)
     end
 end

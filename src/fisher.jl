@@ -137,7 +137,9 @@ end
 
 function pvalue_both_minlike(x::FisherExactTest, ω::Float64=1.0)
     a, b, c, d = reorder(x.a, x.b, x.c, x.d)
-
+    if a == c == 0 || b == d == 0
+        return 1.0
+    end
     dist = FisherNoncentralHypergeometric(a+b, c+d, a+c, ω)
 
     p = pdf(dist, a)
@@ -159,9 +161,9 @@ end
 
 # confidence interval by inversion of p-value
 """
-    confint(x::FisherExactTest, alpha::Float64=0.05; tail=:both, method=:central)
+    confint(x::FisherExactTest; level::Float64=0.95, tail=:both, method=:central)
 
-Compute a confidence interval with coverage 1 - `alpha`. One-sided intervals are based on
+Compute a confidence interval with coverage `level`. One-sided intervals are based on
 Fisher's non-central hypergeometric distribution. For `tail = :both`, the only
 `method` implemented yet is the central interval (`:central`).
 
@@ -177,26 +179,32 @@ Fisher's non-central hypergeometric distribution. For `tail = :both`, the only
     Blaker’s exact tests". Biostatistics, Volume 11, Issue 2, 1 April 2010, Pages 373–374,
     [link](https://doi.org/10.1093/biostatistics/kxp050)
 """
-function StatsBase.confint(x::FisherExactTest, alpha::Float64=0.05; tail=:both, method=:central)
-    check_alpha(alpha)
+function StatsBase.confint(x::FisherExactTest; level::Float64=0.95, tail=:both, method=:central)
+    check_level(level)
+    if x.a == x.c == 0 || x.b == x.d == 0
+        return (0.0, Inf)
+    end
     dist(ω) = FisherNoncentralHypergeometric(x.a+x.b, x.c+x.d, x.a+x.c, ω)
-    obj(ω) = pvalue(dist(ω), x.a, tail=tail) - alpha
+    obj(ω) = pvalue(dist(ω), x.a, tail=tail) - (1-level)
 
     if tail == :left # upper bound
         if (x.a == maximum(dist(1.0)))
             (0.0, Inf)
         else
-            (0.0, fzero(obj, find_brackets(obj)...))
+            lower, upper = find_brackets(obj)
+            (0.0, lower == upper ? lower : find_zero(obj, (lower, upper)))
         end
     elseif tail == :right # lower bound
         if (x.a == minimum(dist(1.0)))
             (0.0, Inf)
         else
-            (fzero(obj, find_brackets(obj)...), Inf)
+            lower, upper = find_brackets(obj)
+            (lower == upper ? lower : find_zero(obj, (lower, upper)), Inf)
         end
     elseif tail == :both
         if method == :central
-            (StatsBase.confint(x, alpha/2; tail=:right)[1], StatsBase.confint(x, alpha/2; tail=:left)[2])
+            (StatsBase.confint(x, level=1-(1-level)/2, tail=:right)[1],
+             StatsBase.confint(x, level=1-(1-level)/2, tail=:left)[2])
         else
             throw(ArgumentError("method=$(method) is not implemented yet"))
         end
@@ -242,6 +250,9 @@ end
 # since the mode and mean of Fisher's Noncentral Hypergeometric distribution
 # coincide, this is equivalent to find ω, s.t., mean(dist(ω)) = a
 function cond_mle_odds_ratio(a::Int, b::Int, c::Int, d::Int)
+    if a == c == 0 || b == d == 0
+        return 0.0
+    end
     dist(ω) = FisherNoncentralHypergeometric(a+b, c+d, a+c, ω)
 
     if (a == minimum(dist(1.0)))
@@ -250,6 +261,7 @@ function cond_mle_odds_ratio(a::Int, b::Int, c::Int, d::Int)
         Inf
     else
         obj(ω) = mean(dist(ω))-a
-        fzero(obj, find_brackets(obj)...)
+        lower, upper = find_brackets(obj)
+        lower == upper ? lower : find_zero(obj, (lower, upper))
     end
 end

@@ -13,15 +13,18 @@ KSampleADTest
 
 ```@docs
 BinomialTest
+confint(::BinomialTest)
 ```
 
 ## Fisher exact test
 
 ```@docs
 FisherExactTest
+confint(::FisherExactTest)
+pvalue(::FisherExactTest)
 ```
 
-## Kolmogorov–Smirnov test
+## Kolmogorov-Smirnov test
 
 Available are an exact one-sample test and approximate (i.e. asymptotic) one- and two-sample
 tests.
@@ -52,6 +55,12 @@ ApproximateMannWhitneyUTest
 SignTest
 ```
 
+## Wald-Wolfowitz independence test
+
+```@docs
+WaldWolfowitzTest
+```
+
 ## Wilcoxon signed rank test
 
 ```@docs
@@ -65,4 +74,10 @@ ApproximateSignedRankTest
 ```@docs
 ExactPermutationTest
 ApproximatePermutationTest
+```
+
+## Fligner-Killeen test
+
+```@docs
+FlignerKilleenTest
 ```

@@ -44,12 +44,14 @@ default_tail(test::PowerDivergenceTest) = :right
 pvalue(x::PowerDivergenceTest; tail=:right) = pvalue(Chisq(x.df),x.stat; tail=tail)
 
 """
-    confint(test::PowerDivergenceTest, alpha = 0.05; tail = :both, method = :sison_glaz)
+    confint(test::PowerDivergenceTest; level = 0.95, tail = :both, method = :auto)
 
-Compute a confidence interval with coverage 1-`alpha` for multinomial proportions using
+Compute a confidence interval with coverage `level` for multinomial proportions using
 one of the following methods. Possible values for `method` are:
 
-  - `:sison_glaz` (default): Sison-Glaz intervals
+  - `:auto` (default): If the minimum of the expected cell counts exceeds 100, Quesenberry-Hurst
+    intervals are used, otherwise Sison-Glaz.
+  - `:sison_glaz`: Sison-Glaz intervals
   - `:bootstrap`: Bootstrap intervals
   - `:quesenberry_hurst`: Quesenberry-Hurst intervals
   - `:gold`: Gold intervals (asymptotic simultaneous intervals)
@@ -65,28 +67,31 @@ one of the following methods. Possible values for `method` are:
   * Gold, R. Z. Tests Auxiliary to ``χ^2`` Tests in a Markov Chain. Annals of
     Mathematical Statistics, 30:56-74, 1963.
 """
-function StatsBase.confint(x::PowerDivergenceTest, alpha::Float64=0.05;
-                           tail::Symbol=:both, method::Symbol=:sison_glaz, correct::Bool=true,
+function StatsBase.confint(x::PowerDivergenceTest; level::Float64=0.95,
+                           tail::Symbol=:both, method::Symbol=:auto, correct::Bool=true,
                            bootstrap_iters::Int64=10000, GC::Bool=true)
-    check_alpha(alpha)
+    check_level(level)
 
     m  = length(x.thetahat)
 
     if tail == :left
-        i = StatsBase.confint(x, alpha*2,method=method, GC=GC)
+        i = StatsBase.confint(x, level=1-(1-level)*2, method=method, GC=GC)
         Tuple{Float64,Float64}[(0.0, i[j][2]) for j in 1:m]
     elseif tail == :right
-        i = StatsBase.confint(x, alpha*2,method=method, GC=GC)
+        i = StatsBase.confint(x, level=1-(1-level)*2, method=method, GC=GC)
         Tuple{Float64,Float64}[(i[j][1], 1.0) for j in 1:m]
     elseif tail == :both
+        if method == :auto
+            method = minimum(x.expected) > 100 ? :quesenberry_hurst : :sison_glaz
+        end
         if method == :gold
-            ci_gold(x,alpha,correct=correct,GC=GC)
+            ci_gold(x, 1-level, correct=correct, GC=GC)
         elseif method == :sison_glaz
-            ci_sison_glaz(x,alpha, skew_correct=correct)
+            ci_sison_glaz(x, 1-level, skew_correct=correct)
         elseif method == :quesenberry_hurst
-            ci_quesenberry_hurst(x,alpha,GC=GC)
+            ci_quesenberry_hurst(x, 1-level, GC=GC)
         elseif method == :bootstrap
-            ci_bootstrap(x,alpha,bootstrap_iters)
+            ci_bootstrap(x, 1-level, bootstrap_iters)
         else
             throw(ArgumentError("method=$(method) is invalid or not implemented yet"))
         end
@@ -249,6 +254,11 @@ cell counts in a 2-dimensional contingency table is the product of the row and c
 marginals.
 
 Note that the entries of `x` (and `y` if provided) must be non-negative integers.
+
+Computed confidence intervals by default are Quesenberry-Hurst intervals
+if the minimum of the expected cell counts exceeds 100, and Sison-Glaz intervals otherwise.
+See the [`confint(::PowerDivergenceTest)`](@ref) documentation for a list of
+supported methods to compute confidence intervals.
 
 The power divergence test is given by
 ```math
@@ -424,6 +434,10 @@ function show_params(io::IO, x::PowerDivergenceTest, ident="")
     println(io, ident, "Sample size:        $(x.n)")
     println(io, ident, "statistic:          $(x.stat)")
     println(io, ident, "degrees of freedom: $(x.df)")
-    println(io, ident, "residuals:          $(vec(x.residuals))")
-    println(io, ident, "std. residuals:     $(vec(x.stdresiduals))")
+    print(io, ident, "residuals:          ")
+    show(io, vec(x.residuals))
+    println(io)
+    print(io, ident, "std. residuals:     ")
+    show(io, vec(x.stdresiduals))
+    println(io)
 end

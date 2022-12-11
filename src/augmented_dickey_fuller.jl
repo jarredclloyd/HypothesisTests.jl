@@ -34,12 +34,12 @@ struct ADFTest <: HypothesisTest
 end
 
 """
-    ADFTest(y, deterministic, lag)
+    ADFTest(y::AbstractVector{T}, deterministic::Symbol, lag::Int) where T<:Real
 
 Compute the augmented Dickey-Fuller unit root test.
 
 `y` is the time series to be tested, `deterministic` determines the deterministic terms
-(options: `none`, `constant`, `trend`, `squared_trend`) and `lag` the number of lagged
+(options: `:none`, `:constant`, `:trend`, `:squared_trend`) and `lag` the number of lagged
 first-differences included in the test regression, respectively.
 
 Critical values and asymptotic p-values are computed based on response surface regressions
@@ -212,7 +212,9 @@ function show_params(io::IO, x::ADFTest, ident)
     println(io, ident, "sample size in regression:          ", x.n)
     println(io, ident, "number of lags:                     ", x.lag)
     println(io, ident, "ADF statistic:                      ", x.stat)
-    println(io, ident, "Critical values at 1%, 5%, and 10%: ", x.cv')
+    print(io, ident, "Critical values at 1%, 5%, and 10%: ")
+    show(io, x.cv')
+    println(io)
 end
 
 pvalue(x::ADFTest) = HypothesisTests.pvalue(Normal(0, 1), adf_pv_aux(x.stat, x.deterministic); tail=:left)

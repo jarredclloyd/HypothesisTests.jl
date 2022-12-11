@@ -17,7 +17,7 @@ using HypothesisTests: default_tail
 	@test abs(pvalue(tst) - 0.0530) <= 1e-4
 
 	@test all(abs.([confint(tst)...;] - [-0.0369, 5.0369]) .<= 1e-4)
-	@test all(abs.([confint(tst, 0.1)...;] - [0.4135, 4.5865]) .<= 1e-4)
+	@test all(abs.([confint(tst, level=0.9)...;] - [0.4135, 4.5865]) .<= 1e-4)
 	c = confint(tst; tail=:left)
 	@test c[1] == -Inf
 	@test abs(c[2] - 4.5865) .<= 1e-4
@@ -54,6 +54,18 @@ end
 	@test default_tail(tst) == :both
 	show(IOBuffer(), tst)
 
+	n1 = length(a1)
+	n2 = length(a2)
+	m1 = mean(a1)
+	m2 = mean(a2)
+	v1 = var(a1)
+	v2 = var(a2)
+
+	tst2 = EqualVarianceTTest(n1, n2, m1, m2, v1, v2)
+	@test tst.df == tst2.df
+	@test tst.t == tst2.t
+	@test pvalue(tst) == pvalue(tst2)
+
 	tst = UnequalVarianceTTest(a1, a2)
 	@test abs(tst.df - 7.03) <= 0.01
 	@test abs(tst.t - 1.959) <= 1e-3
@@ -61,5 +73,6 @@ end
 	@test all(abs.([confint(tst)...] - [-0.0196, 0.2096]) .<= 1e-4)
 	@test default_tail(tst) == :both
 	show(IOBuffer(), tst)
+
 end
 end
