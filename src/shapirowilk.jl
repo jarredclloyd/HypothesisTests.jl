@@ -8,8 +8,6 @@ Approximating the Shapiro-Wilk W-test for non-normality
 DOI: [10.1007/BF01891203](https://doi.org/10.1007/BF01891203)
 =#
 
-# TODO: Rerun simulation and polynomial fitting
-
 # Coefficients from Royston (1992)
 for (s, c) in [(:C1, [0.0, 0.221157, -0.147981, -2.07119, 4.434685, -2.706056]),
                (:C2, [0.0, 0.042981, -0.293762, -1.752461, 5.682633, -3.582633]),
@@ -25,8 +23,7 @@ for (s, c) in [(:C1, [0.0, 0.221157, -0.147981, -2.07119, 4.434685, -2.706056]),
 end
 
 #=
-The following hardcoded constants has been replaced by more precise values:
-
+The following hardcoded constants have been replaced by more precise values:
 SQRTH = sqrt(2.0)/2.0 # 0.70711E0
 TH = 3/8 # 0.375E0
 SMALL = eps(1.0) # 1E-19
@@ -34,15 +31,15 @@ PI6 = π/6 # 0.1909859E1
 STQR = asin(sqrt(0.75)) # 0.1047198E1
 =#
 
-struct SWCoeffs <: AbstractVector{Float64}
+struct ShapiroWilkCoefs <: AbstractVector{Float64}
     N::Int
     A::Vector{Float64}
 end
 
-Base.size(SWc::SWCoeffs) = (SWc.N,)
-Base.IndexStyle(::Type{SWCoeffs}) = IndexLinear()
+Base.size(SWc::ShapiroWilkCoefs) = (SWc.N,)
+Base.IndexStyle(::Type{ShapiroWilkCoefs}) = IndexLinear()
 
-Base.@propagate_inbounds function Base.getindex(SWc::SWCoeffs, i::Integer)
+Base.@propagate_inbounds function Base.getindex(SWc::ShapiroWilkCoefs, i::Integer)
     @boundscheck checkbounds(SWc, i)
     @inbounds if checkbounds(Bool, SWc.A, i)
         return SWc.A[i]
@@ -53,11 +50,11 @@ Base.@propagate_inbounds function Base.getindex(SWc::SWCoeffs, i::Integer)
     end
 end
 
-function SWCoeffs(N::Int)
+function ShapiroWilkCoefs(N::Int)
     if N < 3
-        throw(ArgumentError("N must be greater than or equal to 3: $N"))
+        throw(ArgumentError("N must be greater than or equal to 3 (got $N)"))
     elseif N == 3 # exact
-        return SWCoeffs(N, [sqrt(2.0) / 2.0])
+        return ShapiroWilkCoefs(N, [sqrt(2.0) / 2.0])
     else
         # Weisberg&Bingham 1975 statistic; store only positive half of m:
         # it is (anti-)symmetric; hence '2' factor below
@@ -76,13 +73,13 @@ function SWCoeffs(N::Int)
             m[1], m[2] = a₁, a₂
         end
 
-        return SWCoeffs(N, m)
+        return ShapiroWilkCoefs(N, m)
     end
 end
 
-function swstat(X::AbstractArray{<:Real}, A::SWCoeffs)
+function swstat(X::AbstractVector{<:Real}, A::ShapiroWilkCoefs)
     if last(X) - first(X) < length(X) * eps()
-        throw(ArgumentError("sample seems to be constant!"))
+        throw(ArgumentError("Sample is constant within tolerance: $(length(X) * eps())"))
     end
     AX = dot(view(A, 1:length(X)), X)
     m = mean(X)
@@ -92,16 +89,16 @@ function swstat(X::AbstractArray{<:Real}, A::SWCoeffs)
 end
 
 struct ShapiroWilkTest <: HypothesisTest
-    SWc::SWCoeffs         # Expectation of order statistics for Shapiro-Wilk test
+    SWc::ShapiroWilkCoefs         # Expectation of order statistics for Shapiro-Wilk test
     W::Float64            # test statistic
-    N1::Int               # (upper) uncensored data length
+    uncensoredN::Int               # total number of uncensored samples
 end
 
 testname(::ShapiroWilkTest) = "Shapiro-Wilk normality test"
 population_param_of_interest(t::ShapiroWilkTest) =
-    ("Squared correlation of data and SWCoeffs (W)", 1.0, t.W)
+    ("Squared correlation of data and ShapiroWilkCoefs (W)", 1.0, t.W)
 default_tail(::ShapiroWilkTest) = :left
-censored_ratio(t::ShapiroWilkTest) = (length(t.SWc) - t.N1) / length(t.SWc)
+censored_ratio(t::ShapiroWilkTest) = (length(t.SWc) - t.uncensoredN) / length(t.SWc)
 
 function show_params(io::IO, t::ShapiroWilkTest, indent)
     l = 24
@@ -133,35 +130,40 @@ function pvalue(t::ShapiroWilkTest)
         end
         return ccdf(Normal(μ, σ), w)
     else
-        throw("censored samples not implemented yet")
+        throw("p-value for censored samples not implemented yet.")
         # to implement censored samples follow Royston 1993 Section 3.3
     end
 end
 
 """
-    ShapiroWilkTest(X::AbstractArray{<:Real}, SWc::SWCoeffs=SWCoeffs(length(X)); kwargs...)
-Perform a Shapiro-Wilk test of normality on `X`.
+    ShapiroWilkTest(sample::AbstractVector{<:Real}, SWc::ShapiroWilkCoefs=ShapiroWilkCoefs(length(X)); kwargs...)
 
-This julia implementation is based the method of Royston (1992).
-The calculation of the p-value is exact for `N = 3`, and for ranges
-`4 ≤ N ≤ 11` and `12 ≤ N ≤ 5000` (Royston 1992) two separate approximations
-for p-values are used.
+Perform a Shapiro-Wilk test of the null hypothesis that the data in vector `sample`
+come from a normal distribution.
+
+This implementation is based the method by Royston (1992).
+
+The calculation of the p-value is exact for `N = 3`. Two separate approximations for
+p-values are used for the ranges `4 ≤ N ≤ 11` and `12 ≤ N ≤ 5000` (Royston 1992).
 
 Implements: [`pvalue`](@ref)
 
-# Notes (Royston 1993)
-* While the (approximated) W-statistic will be accurate for large sample size
-  (`N > 2000`), returned p-values may not be reliable.
-* Censoring too much data (`(N - N1) / N > 0.8`, where `N1` is (upper)
-  uncensored data length), or when the sample size is small (`N < 20`) may
-  produce unreliable p-values.
+# Keywords
+* `uncensoredN::Int`: Total number of uncensored data points; default is `length(sample)`.
+* `sorted::Bool=issorted(sample)`: Is the sample data sorted. By default will perform a check.
+
+# Warning
+As noted by Royston (1993), (approximated) W-statistic will be accurate
+but returned p-values may not be reliable if either of these apply:
+* Sample size is large  (`N > 2000`) or small (`N < 20`)
+* Too much data is censored (`(N - uncensoredN) / N ) > 0.8`.
 
 # Implementation notes
 * The current implementation DOES NOT implement p-values for censored data.
 * If multiple Shapiro-Wilk tests are to be performed on samples of same
   cardinality it is beneficial to pass `SWc` for re-use.
-* For maximal performance sorted `X` should be passed and indicated with
-  `sample_sorted=true` keyword argument.
+* For maximal performance sorted `sample` should be passed and indicated with
+  `sorted=true` keyword argument.
 
 # References
 Shapiro, S. S., & Wilk, M. B. (1965). An Analysis of Variance Test for Normality
@@ -182,31 +184,30 @@ Normality. *Journal of the Royal Statistical Society Series C
 (Applied Statistics)*, 44(4), 547–551.
 [doi:10.2307/2986146](https://doi.org/10.2307/2986146).
 """
-function ShapiroWilkTest(
-    sample::AbstractArray{<:Real},
-    SWc::SWCoeffs=SWCoeffs(length(sample));
-    N1=length(sample),
-    sample_sorted=issorted(sample)
-)
+function ShapiroWilkTest(sample::AbstractVector{<:Real},
+                        SWc::ShapiroWilkCoefs=ShapiroWilkCoefs(length(sample));
+                        uncensoredN::Int=length(sample),
+                        sorted::Bool=issorted(sample)
+                        )
 
     N = length(sample)
     if N < 3
         throw(ArgumentError("at least 3 samples are required, got $N"))
-    elseif N1 > N
-        throw(ArgumentError("censoring length N1 must be less than or equal to " *
-                            "total length, got N1 = $N1 > $N = N"))
+    elseif uncensoredN > N
+        throw(ArgumentError("censoring length `uncensoredN` must be less than or equal to " *
+                            "total length, got `uncensoredN` = $uncensoredN > $N = N"))
     elseif length(SWc) ≠ length(sample)
         throw(DimensionMismatch("length of sample and Shapiro-Wilk coeffs " *
                                 "differ, got $N and $(length(SWc))"))
     end
 
-    W = if !sample_sorted
-        swstat(sort!(sample[1:N1]), SWc)
+    W = if !sorted
+        swstat(sort!(sample[1:uncensoredN]), SWc)
     else
-        swstat(view(sample, 1:N1), SWc)
+        swstat(view(sample, 1:uncensoredN), SWc)
     end
 
-    return ShapiroWilkTest(SWc, W, N1)
+    return ShapiroWilkTest(SWc, W, uncensoredN)
 end
 
 #=
@@ -229,10 +230,10 @@ for (lib, I, F) in (("./swilk64.so", Int64, Float64),
             ccall((:swilk_, $lib),
                 Cvoid,
                 (
-                Ref{Bool},  # INIT if false compute SWCoeffs in A, else use A
+                Ref{Bool},  # INIT if false compute ShapiroWilkCoefs in A, else use A
                 Ref{$F},    # X    sample
                 Ref{$I},    # N    samples length
-                Ref{$I},    # N1   (upper) uncensored data length
+                Ref{$I},    # uncensoredN   (upper) uncensored data length
                 Ref{$I},    # N2   length of A
                 Ref{$F},    # A    A
                 Ref{$F},    # W    W-statistic
